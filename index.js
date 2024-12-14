@@ -3,13 +3,15 @@ const bcrypt = require('bcryptjs');
 const _PORT = 3001;
 const dotenv = require('dotenv');
 dotenv.config();
+
+const app = express();
 // لحمايه من iframes
 const helmet = require('helmet');
 app.use(helmet());
 
 
 
-const app = express();
+
 
 // Middleware
 const cors = require('cors');
