@@ -5,11 +5,6 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
-// لحمايه من iframes
-const helmet = require('helmet');
-app.use(helmet());
-
-
 
 
 
@@ -17,11 +12,7 @@ app.use(helmet());
 const cors = require('cors');
 app.use(
     cors({
-        origin: [
-            'http://localhost:3000', // رابط الواجهة أثناء التطوير
-            'https://subtle-cassata-13f01e.netlify.app', // رابط الإنتاج
-        ],
-        credentials: true, // السماح باستخدام بيانات الاعتماد (Cookies, Authorization headers)
+        origin: '*'
     })
 );
 app.options('*', cors()); // لمعالجة طلبات التحقق المسبق
