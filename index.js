@@ -6,16 +6,25 @@ dotenv.config();
 
 const app = express();
 
+const helmet = require('helmet');
+app.use(helmet());
+
 
 
 // Middleware
 const cors = require('cors');
 app.use(
     cors({
-        origin: '*'
+        origin: [
+            'http://localhost:3000', // رابط الواجهة أثناء التطوير
+            'https://subtle-cassata-13f01e.netlify.app', // رابط الإنتاج
+        ],
+        credentials: true, // السماح باستخدام بيانات الاعتماد (Cookies, Authorization headers)
     })
 );
-app.options('*', cors()); // لمعالجة طلبات التحقق المسبق
+
+// لإدارة طلبات التحقق المسبق (OPTIONS)
+app.options('*', cors());
 app.use(express.json());
 
 // MongoDB connection URI
