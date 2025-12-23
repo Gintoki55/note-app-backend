@@ -79,6 +79,7 @@ app.post('/register', async (req, res) => {
     }
 
     try {
+      console.log("Mongoose state:", mongoose.connection.readyState);
         const existingUser = await UserModel.findOne({ $or: [{ email }, { username }] });
         if (existingUser) {
             const field = existingUser.email === email ? 'Email' : 'Username';
@@ -288,18 +289,21 @@ app.put('/update-note/:id', authenticateToken, async (req, res) => {
 
 
 
-const nodemailer = require('nodemailer');
+// const nodemailer = require('nodemailer');
 
-// إعداد بيانات SMTP لـ SendGrid
-const transporter = nodemailer.createTransport({
-  host: "smtp.sendgrid.net",
-  port: 587,
-  secure: false, // استخدم `false` إذا كنت تستخدم المنفذ 587
-  auth: {
-    user: "apikey", // يجب أن يكون دائمًا "apikey"
-    pass: process.env.SENDGRID_API_KEY, // مفتاح API الخاص بـ SendGrid
-  },
-});
+// // إعداد بيانات SMTP لـ SendGrid
+// const transporter = nodemailer.createTransport({
+//   host: "smtp.sendgrid.net",
+//   port: 587,
+//   secure: false, // استخدم `false` إذا كنت تستخدم المنفذ 587
+//   auth: {
+//     user: "apikey", // يجب أن يكون دائمًا "apikey"
+//     pass: process.env.SENDGRID_API_KEY, // مفتاح API الخاص بـ SendGrid
+//   },
+// });
+const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
 
 
 // طلب إعادة تعيين كلمة المرور
@@ -315,9 +319,17 @@ app.post('/request-reset-password', async (req, res) => {
     const token = jwt.sign({ id: user._id }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
 
     const resetLink = `https://subtle-cassata-13f01e.netlify.app/reset-password?token=${token}`;
-    await transporter.sendMail({
-      from: 'Note App <ahmedbarkhed7@gmail.com>',
+
+    // await transporter.sendMail({
+    //   from: 'Note App <ahmedbarkhed7@gmail.com>',
+    //   to: email,
+    //   subject: 'Password Reset Request',
+    //   html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 15 minutes.</p>`,
+    // });
+
+    await sgMail.send({
       to: email,
+      from: 'ahmedbarkhed7@gmail.com', // لازم يكون Verified في SendGrid
       subject: 'Password Reset Request',
       html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 15 minutes.</p>`,
     });
