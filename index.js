@@ -8,9 +8,8 @@ const app = express();
 
 const helmet = require('helmet');
 app.use(helmet());
-
-
-
+//// token package
+const jwt = require('jsonwebtoken');
 // Middleware
 const cors = require('cors');
 app.use(
@@ -32,8 +31,7 @@ const mongoose = require('mongoose');
 const username = process.env.MONGO_USERNAME;
 const password = process.env.MONGO_PASSWORD;
 const dbName = process.env.MONGO_DB_NAME;
-// const MONGO_URI = `mongodb+srv://${username}:${password}@mern-note.fibpmpt.mongodb.net/${dbName}`;
-const MONGO_URI = `mongodb+srv://${username}:${password}@finalproject.sqlb0ap.mongodb.net/${dbName}?retryWrites=true&w=majority`;
+const MONGO_URI = `mongodb+srv://${username}:${password}@mern-note.99ozae0.mongodb.net/${dbName}?retryWrites=true&w=majority`;
 const usersUrl = process.env.GET_ALL_USERS;
 // Connect to MongoDB
 mongoose.connect(MONGO_URI)
@@ -124,8 +122,6 @@ app.post('/register', async (req, res) => {
 });
 
 
-//// token package
-const jwt = require('jsonwebtoken');
 // Login Route
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
