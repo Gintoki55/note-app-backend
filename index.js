@@ -287,34 +287,34 @@ app.put('/update-note/:id', authenticateToken, async (req, res) => {
   }
 });
 
-
-
 // const nodemailer = require('nodemailer');
+// const sgTransport = require('nodemailer-sendgrid-transport');
 
-// // إعداد بيانات SMTP لـ SendGrid
-// const transporter = nodemailer.createTransport({
-//   host: "smtp.sendgrid.net",
-//   port: 587,
-//   secure: false, // استخدم `false` إذا كنت تستخدم المنفذ 587
-//   auth: {
-//     user: "apikey", // يجب أن يكون دائمًا "apikey"
-//     pass: process.env.SENDGRID_API_KEY, // مفتاح API الخاص بـ SendGrid
-//   },
-// });
-// const sgMail = require('@sendgrid/mail');
-// sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// // إعداد SendGrid Transport
+// const transporter = nodemailer.createTransport(
+//   sgTransport({
+//     auth: {
+//       api_key: process.env.SENDGRID_API_KEY // المفتاح من Environment
+//     }
+//   })
+// );
 
-const nodemailer = require('nodemailer');
-const sgTransport = require('nodemailer-sendgrid-transport');
+const nodemailer = require("nodemailer");
 
-// إعداد SendGrid Transport
-const transporter = nodemailer.createTransport(
-  sgTransport({
-    auth: {
-      api_key: process.env.SENDGRID_API_KEY // المفتاح من Environment
-    }
-  })
-);
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: false, // لا تغيرها
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+transporter.verify((err) => {
+  if (err) console.error(err);
+  else console.log("SMTP شغال 🔥");
+});
 
 
 
@@ -340,19 +340,14 @@ app.post('/request-reset-password', async (req, res) => {
     //   html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 15 minutes.</p>`,
     // });
 
-    // await sgMail.send({
-    //   to: email,
-    //   from: 'ahmedbarkhed7@gmail.com', // لازم يكون Verified في SendGrid
-    //   subject: 'Password Reset Request',
-    //   html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 15 minutes.</p>`,
-    // });
-
     await transporter.sendMail({
+      from: 'Note App <ahmedbarkhed7@gmail.com>',
       to: email,
-      from: 'ahmedbarkhed7@gmail.com', // لازم يكون Verified في SendGrid
       subject: 'Password Reset Request',
-      html: `<p>Click <a href="${resetLink}">here</a> to reset your password. Link expires in 15 min.</p>`
+      html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 15 minutes.</p>`,
     });
+
+
 
     res.json({ error: false, message: 'Password reset link sent to email.' });
   } catch (error) {
