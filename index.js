@@ -299,7 +299,14 @@ app.put('/update-note/:id', authenticateToken, async (req, res) => {
 //   })
 // );
 
-const emailjs = require('emailjs-com');
+const email = require('emailjs/email');
+
+const server = email.server.connect({
+  user: process.env.EMAILJS_USER,       // بريدك الكامل، مثال: your-email@gmail.com
+  password: process.env.EMAILJS_PASS,   // App Password من Gmail
+  host: "smtp.gmail.com",
+  ssl: true
+});
 
 
 // طلب إعادة تعيين كلمة المرور
@@ -323,25 +330,22 @@ app.post('/request-reset-password', async (req, res) => {
     //   html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 15 minutes.</p>`,
     // });
 
-    const templateParams = {
-      to_email: email,
-      reset_link: resetLink,
-      user_name: user.name || "User"
+    // إعداد الرسالة
+    const message = {
+      text: `Click this link to reset your password: ${resetLink}`,
+      from: `NOTES APP <${process.env.EMAILJS_USER}>`,
+      to: userEmail,
+      subject: "Password Reset Request"
     };
 
-    // إرسال الإيميل باستخدام EmailJS
-    emailjs.send(
-      process.env.EMAILJS_SERVICE_ID,
-      process.env.EMAILJS_TEMPLATE_ID,
-      templateParams,
-      process.env.EMAILJS_USER_ID
-    ).then(
-      () => res.json({ error: false, message: 'Password reset link sent.' }),
-      (err) => {
+    // إرسال الإيميل
+    server.send(message, (err, message) => {
+      if (err) {
         console.error("EmailJS send error:", err);
-        res.status(500).json({ error: true, message: 'Failed to send email.' });
+        return res.status(500).json({ error: true, message: "Failed to send email." });
       }
-    );
+      res.json({ error: false, message: "Password reset link sent." });
+    });
 
   } catch (error) {
     console.error(error);
