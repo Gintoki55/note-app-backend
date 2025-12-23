@@ -334,7 +334,7 @@ app.post('/request-reset-password', async (req, res) => {
 
     const mailOptions = {
       from: process.env.EMAILJS_USER,
-      to: userEmail,
+      to: email,
       subject: 'Password Reset Request',
       html: `<p>Click <a href="${resetLink}">here</a> to reset your password. Link expires in 15 min.</p>`
     };
