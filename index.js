@@ -299,13 +299,15 @@ app.put('/update-note/:id', authenticateToken, async (req, res) => {
 //   })
 // );
 
-const email = require('emailjs/email');
 
-const server = email.server.connect({
-  user: process.env.EMAILJS_USER,       // بريدك الكامل، مثال: your-email@gmail.com
-  password: process.env.EMAILJS_PASS,   // App Password من Gmail
-  host: "smtp.gmail.com",
-  ssl: true
+
+// إعداد SMTP Gmail
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAILJS_USER,      // بريدك الكامل
+    pass: process.env.EMAILJS_PASS       // Gmail App Password
+  }
 });
 
 
@@ -330,26 +332,24 @@ app.post('/request-reset-password', async (req, res) => {
     //   html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 15 minutes.</p>`,
     // });
 
-    // إعداد الرسالة
-    const message = {
-      text: `Click this link to reset your password: ${resetLink}`,
-      from: `NOTES APP <${process.env.EMAILJS_USER}>`,
+    const mailOptions = {
+      from: process.env.EMAILJS_USER,
       to: userEmail,
-      subject: "Password Reset Request"
+      subject: 'Password Reset Request',
+      html: `<p>Click <a href="${resetLink}">here</a> to reset your password. Link expires in 15 min.</p>`
     };
 
-    // إرسال الإيميل
-    server.send(message, (err, message) => {
+    transporter.sendMail(mailOptions, (err, info) => {
       if (err) {
-        console.error("EmailJS send error:", err);
-        return res.status(500).json({ error: true, message: "Failed to send email." });
+        console.error("Email send error:", err);
+        return res.status(500).json({ error: true, message: 'Failed to send email.' });
       }
-      res.json({ error: false, message: "Password reset link sent." });
+      res.json({ error: false, message: 'Password reset link sent.' });
     });
-
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: true, message: 'Error sending reset link.' });
+    res.status(500).json({
+       error: true, message: 'Error sending reset link.' });
   }
 });
 
