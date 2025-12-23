@@ -299,24 +299,7 @@ app.put('/update-note/:id', authenticateToken, async (req, res) => {
 //   })
 // );
 
-const nodemailer = require("nodemailer");
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: false, // لا تغيرها
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
-transporter.verify((err) => {
-  if (err) console.error(err);
-  else console.log("SMTP شغال 🔥");
-});
-
-
+const emailjs = require('emailjs-com');
 
 
 // طلب إعادة تعيين كلمة المرور
@@ -340,16 +323,26 @@ app.post('/request-reset-password', async (req, res) => {
     //   html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 15 minutes.</p>`,
     // });
 
-    await transporter.sendMail({
-      from: 'Note App <ahmedbarkhed7@gmail.com>',
-      to: email,
-      subject: 'Password Reset Request',
-      html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 15 minutes.</p>`,
-    });
+    const templateParams = {
+      to_email: email,
+      reset_link: resetLink,
+      user_name: user.name || "User"
+    };
 
+    // إرسال الإيميل باستخدام EmailJS
+    emailjs.send(
+      process.env.EMAILJS_SERVICE_ID,
+      process.env.EMAILJS_TEMPLATE_ID,
+      templateParams,
+      process.env.EMAILJS_USER_ID
+    ).then(
+      () => res.json({ error: false, message: 'Password reset link sent.' }),
+      (err) => {
+        console.error("EmailJS send error:", err);
+        res.status(500).json({ error: true, message: 'Failed to send email.' });
+      }
+    );
 
-
-    res.json({ error: false, message: 'Password reset link sent to email.' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: true, message: 'Error sending reset link.' });
