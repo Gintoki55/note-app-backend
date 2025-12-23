@@ -287,7 +287,7 @@ app.put('/update-note/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// const nodemailer = require('nodemailer');
+const nodemailer = require('nodemailer');
 // const sgTransport = require('nodemailer-sendgrid-transport');
 
 // // إعداد SendGrid Transport
