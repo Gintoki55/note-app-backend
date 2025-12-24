@@ -287,85 +287,76 @@ app.put('/update-note/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// ------------------ Generate OTP ------------------
+// ------------------ Request Reset Password ------------------
 app.post('/request-reset-password', async (req, res) => {
-  const { email } = req.body;
+    const { email } = req.body;
 
-  try {
-    const user = await UserModel.findOne({ email });
-    if (!user) return res.status(404).json({ error: true, message: "We couldn’t find an account with that email address. Please double-check or sign up if you’re new." });
+    try {
+        const user = await UserModel.findOne({ email });
+        if (!user) return res.status(404).json({ error: true, message: "User not found" });
 
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const expires = new Date(Date.now() + 5 * 60 * 1000); // 5 دقائق
+        // توليد OTP 4 أرقام
+        const otp = Math.floor(1000 + Math.random() * 9000);
 
-    user.resetOtp = otp;
-    user.resetOtpExpires = expires;
-    await user.save();
+        // حفظ في اليوزر مع صلاحية 5 دقائق
+        user.resetOtp = otp.toString();
+        user.resetOtpExpires = new Date(Date.now() + 5 * 60 * 1000);
+        await user.save();
 
-    console.log(`OTP for ${email}: ${otp}`); // يظهر في console
+        // إرجاع OTP للفرونت (لتجربة NProgress)
+        res.json({ error: false, message: "OTP generated", otp });
 
-    res.json({ error: false, message: "OTP generated. Check console." });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: true, message: "Server error" });
-  }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: true, message: "Server error" });
+    }
 });
-
-
 // ------------------ Verify OTP ------------------
 app.post('/verify-otp', async (req, res) => {
-  const { email, otp } = req.body;
+    const { email, otp } = req.body;
+    try {
+        const user = await UserModel.findOne({ email });
+        if (!user) return res.status(404).json({ error: true, message: "User not found" });
 
-  try {
-    const user = await UserModel.findOne({ email });
-    if (!user) return res.status(404).json({ error: true, message: "User not found" });
+        if (!user.resetOtp || !user.resetOtpExpires)
+            return res.status(400).json({ error: true, message: "OTP not requested" });
 
-    if (!user.resetOtp || user.resetOtp !== otp)
-      return res.status(400).json({ error: true, message: "Invalid OTP" });
+        if (Date.now() > new Date(user.resetOtpExpires))
+            return res.status(400).json({ error: true, message: "OTP expired" });
 
-    if (Date.now() > new Date(user.resetOtpExpires).getTime()) {
-      user.resetOtp = null;
-      user.resetOtpExpires = null;
-      await user.save();
-      return res.status(400).json({ error: true, message: "OTP expired" });
+        if (user.resetOtp !== otp)
+            return res.status(400).json({ error: true, message: "Invalid OTP" });
+
+        // مسح OTP بعد التحقق
+        user.resetOtp = null;
+        user.resetOtpExpires = null;
+        await user.save();
+
+        // إرسال نجاح للتحويل للفرونت
+        res.json({ error: false, message: "OTP verified. You can reset password now." });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: true, message: "Server error" });
     }
-
-    res.json({ error: false, message: "OTP verified" });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: true, message: "Server error" });
-  }
 });
-
-
 // ------------------ Reset Password ------------------
 app.post('/reset-password', async (req, res) => {
-  const { email, otp, newPassword } = req.body;
+    const { email, newPassword } = req.body;
+    try {
+        const user = await UserModel.findOne({ email });
+        if (!user) return res.status(404).json({ error: true, message: "User not found" });
 
-  try {
-    const user = await UserModel.findOne({ email });
-    if (!user) return res.status(404).json({ error: true, message: "User not found" });
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        await user.save();
 
-    if (!user.resetOtp || user.resetOtp !== otp)
-      return res.status(400).json({ error: true, message: "Invalid OTP" });
+        res.json({ error: false, message: "Password reset successful" });
 
-    if (Date.now() > new Date(user.resetOtpExpires).getTime())
-      return res.status(400).json({ error: true, message: "OTP expired" });
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-    user.resetOtp = null;
-    user.resetOtpExpires = null;
-    await user.save();
-
-    res.json({ error: false, message: "Password reset successful" });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: true, message: "Server error" });
-  }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: true, message: "Server error" });
+    }
 });
 
 
