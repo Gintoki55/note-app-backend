@@ -3,6 +3,7 @@
     "@sendgrid/mail": "^8.1.6",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
     "dotenv": "^16.4.5",
     "emailjs": "^5.0.0",
     "emailjs-com": "^3.2.0",

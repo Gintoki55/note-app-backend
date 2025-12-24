@@ -304,13 +304,15 @@ app.post('/request-reset-password', async (req, res) => {
         await user.save();
 
         // إرجاع OTP للفرونت (لتجربة NProgress)
-        res.json({ error: false, message: "OTP generated", otp:user.resetOtp });
+        res.json({ error: false, message: "OTP generated", user:user.resetOtp });
 
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: true, message: "Server error" });
     }
 });
+
+const crypto = require("crypto");  
 // ------------------ Verify OTP ------------------
 app.post('/verify-otp', async (req, res) => {
     const { email, otp } = req.body;
@@ -327,13 +329,16 @@ app.post('/verify-otp', async (req, res) => {
         if (user.resetOtp !== otp)
             return res.status(400).json({ error: true, message: "Invalid OTP" });
 
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        user.resetPasswordToken = resetToken;
+        user.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 دقائق
         // مسح OTP بعد التحقق
         user.resetOtp = null;
         user.resetOtpExpires = null;
         await user.save();
 
         // إرسال نجاح للتحويل للفرونت
-        res.json({ error: false, message: "OTP verified. You can reset password now." });
+        res.json({ error: false, message: "OTP verified. You can reset password now.", token: resetToken });
 
     } catch (err) {
         console.error(err);
@@ -342,10 +347,14 @@ app.post('/verify-otp', async (req, res) => {
 });
 // ------------------ Reset Password ------------------
 app.post('/reset-password', async (req, res) => {
-    const { email, newPassword } = req.body;
+    const { token, newPassword } = req.body;
     try {
-        const user = await UserModel.findOne({ email });
-        if (!user) return res.status(404).json({ error: true, message: "User not found" });
+        const user = await UserModel.findOne({
+          resetPasswordToken: token,
+          resetPasswordExpires: { $gt: Date.now() }
+        });
+        if (!user)
+        return res.status(400).json({ error: true, message: "Invalid or expired token" })
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         user.password = hashedPassword;

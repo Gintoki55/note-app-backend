@@ -22,7 +22,10 @@ const usersSchema = new Schema({
     },
     resetOtpExpires: {    // 🔹 وقت انتهاء صلاحية OTP
         type: Date,
-    }
+    },
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
+    
 });
 
 const UsersModel = model('users', usersSchema);
