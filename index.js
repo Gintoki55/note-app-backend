@@ -304,7 +304,7 @@ app.post('/request-reset-password', async (req, res) => {
         await user.save();
 
         // إرجاع OTP للفرونت (لتجربة NProgress)
-        res.json({ error: false, message: "OTP generated", user:user.resetOtp });
+        res.json({ error: false, message: "OTP generated", otp:user.resetOtp });
 
     } catch (err) {
         console.error(err);
