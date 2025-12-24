@@ -287,28 +287,8 @@ app.put('/update-note/:id', authenticateToken, async (req, res) => {
   }
 });
 
-const nodemailer = require('nodemailer');
-// const sgTransport = require('nodemailer-sendgrid-transport');
 
-// // إعداد SendGrid Transport
-// const transporter = nodemailer.createTransport(
-//   sgTransport({
-//     auth: {
-//       api_key: process.env.SENDGRID_API_KEY // المفتاح من Environment
-//     }
-//   })
-// );
-
-
-
-// إعداد SMTP Gmail
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAILJS_USER,      // بريدك الكامل
-    pass: process.env.EMAILJS_PASS       // Gmail App Password
-  }
-});
+const otpStore = new Map(); 
 
 
 // طلب إعادة تعيين كلمة المرور
@@ -325,57 +305,91 @@ app.post('/request-reset-password', async (req, res) => {
 
     const resetLink = `https://subtle-cassata-13f01e.netlify.app/reset-password?token=${token}`;
 
-    // await transporter.sendMail({
-    //   from: 'Note App <ahmedbarkhed7@gmail.com>',
-    //   to: email,
-    //   subject: 'Password Reset Request',
-    //   html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 15 minutes.</p>`,
-    // });
 
-    const mailOptions = {
-      from: process.env.EMAILJS_USER,
-      to: email,
-      subject: 'Password Reset Request',
-      html: `<p>Click <a href="${resetLink}">here</a> to reset your password. Link expires in 15 min.</p>`
-    };
+   // توليد OTP 4 أرقام
+    const otp = Math.floor(1000 + Math.random() * 9000);
 
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        console.error("Email send error:", err);
-        return res.status(500).json({ error: true, message: 'Failed to send email.' });
-      }
-      res.json({ error: false, message: 'Password reset link sent.' });
+    // صلاحية 5 دقائق
+    otpStore.set(email, {
+      otp,
+      expiresAt: Date.now() + 5 * 60 * 1000
     });
+
+    // يظهر في console (backend)
+    console.log(`OTP for ${email}:`, otp);
+
+    // نرجعه للفرونت (للتجربة)
+    res.json({
+      error: false,
+      message: "OTP generated. Check console.",
+      otp
+    });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({
-       error: true, message: 'Error sending reset link.' });
+       error: true, message: 'Server error' });
   }
 });
 
 
-// إعادة تعيين كلمة المرور
 app.post('/reset-password', async (req, res) => {
-  const { token, newPassword } = req.body;
+  const { email, otp, newPassword } = req.body;
 
   try {
-    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-    const user = await UserModel.findById(decoded.id);
+    const record = otpStore.get(email);
 
+    if (!record) {
+      return res.status(400).json({
+        error: true,
+        message: "OTP not found. Please request again."
+      });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      otpStore.delete(email);
+      return res.status(400).json({
+        error: true,
+        message: "OTP expired"
+      });
+    }
+
+    if (Number(otp) !== record.otp) {
+      return res.status(400).json({
+        error: true,
+        message: "Invalid OTP"
+      });
+    }
+
+    const user = await UserModel.findOne({ email });
     if (!user) {
-      return res.status(404).json({ error: true, message: 'User not found' });
+      return res.status(404).json({
+        error: true,
+        message: "User not found"
+      });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
     await user.save();
 
-    res.json({ error: false, message: 'Password has been reset successfully.' });
+    // حذف OTP بعد الاستخدام
+    otpStore.delete(email);
+
+    res.json({
+      error: false,
+      message: "Password reset successful"
+    });
+
   } catch (error) {
     console.error(error);
-    res.status(400).json({ error: true, message: 'Invalid or expired token.' });
+    res.status(500).json({
+      error: true,
+      message: "Server error"
+    });
   }
 });
+
 
 
 // Start the server
