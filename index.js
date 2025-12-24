@@ -287,112 +287,89 @@ app.put('/update-note/:id', authenticateToken, async (req, res) => {
   }
 });
 
-
-const otpStore = new Map(); 
-
-
-// طلب إعادة تعيين كلمة المرور
+// ------------------ Generate OTP ------------------
 app.post('/request-reset-password', async (req, res) => {
   const { email } = req.body;
 
   try {
     const user = await UserModel.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ error: true, message: "We couldn’t find an account with that email address. Please double-check or sign up if you’re new." });
-    }
+    if (!user) return res.status(404).json({ error: true, message: "We couldn’t find an account with that email address. Please double-check or sign up if you’re new." });
 
-    const token = jwt.sign({ id: user._id }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const expires = new Date(Date.now() + 5 * 60 * 1000); // 5 دقائق
 
-    const resetLink = `https://subtle-cassata-13f01e.netlify.app/reset-password?token=${token}`;
+    user.resetOtp = otp;
+    user.resetOtpExpires = expires;
+    await user.save();
 
+    console.log(`OTP for ${email}: ${otp}`); // يظهر في console
 
-   // توليد OTP 4 أرقام
-    const otp = Math.floor(1000 + Math.random() * 9000);
+    res.json({ error: false, message: "OTP generated. Check console." });
 
-    // صلاحية 5 دقائق
-    otpStore.set(email, {
-      otp,
-      expiresAt: Date.now() + 5 * 60 * 1000
-    });
-
-    // يظهر في console (backend)
-    console.log(`OTP for ${email}:`, otp);
-
-    // نرجعه للفرونت (للتجربة)
-    res.json({
-      error: false,
-      message: "OTP generated. Check console.",
-      otp
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-       error: true, message: 'Server error' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: true, message: "Server error" });
   }
 });
 
 
+// ------------------ Verify OTP ------------------
+app.post('/verify-otp', async (req, res) => {
+  const { email, otp } = req.body;
+
+  try {
+    const user = await UserModel.findOne({ email });
+    if (!user) return res.status(404).json({ error: true, message: "User not found" });
+
+    if (!user.resetOtp || user.resetOtp !== otp)
+      return res.status(400).json({ error: true, message: "Invalid OTP" });
+
+    if (Date.now() > new Date(user.resetOtpExpires).getTime()) {
+      user.resetOtp = null;
+      user.resetOtpExpires = null;
+      await user.save();
+      return res.status(400).json({ error: true, message: "OTP expired" });
+    }
+
+    res.json({ error: false, message: "OTP verified" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: true, message: "Server error" });
+  }
+});
+
+
+// ------------------ Reset Password ------------------
 app.post('/reset-password', async (req, res) => {
   const { email, otp, newPassword } = req.body;
 
   try {
-    const record = otpStore.get(email);
-
-    if (!record) {
-      return res.status(400).json({
-        error: true,
-        message: "OTP not found. Please request again."
-      });
-    }
-
-    if (Date.now() > record.expiresAt) {
-      otpStore.delete(email);
-      return res.status(400).json({
-        error: true,
-        message: "OTP expired"
-      });
-    }
-
-    if (Number(otp) !== record.otp) {
-      return res.status(400).json({
-        error: true,
-        message: "Invalid OTP"
-      });
-    }
-
     const user = await UserModel.findOne({ email });
-    if (!user) {
-      return res.status(404).json({
-        error: true,
-        message: "User not found"
-      });
-    }
+    if (!user) return res.status(404).json({ error: true, message: "User not found" });
+
+    if (!user.resetOtp || user.resetOtp !== otp)
+      return res.status(400).json({ error: true, message: "Invalid OTP" });
+
+    if (Date.now() > new Date(user.resetOtpExpires).getTime())
+      return res.status(400).json({ error: true, message: "OTP expired" });
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
+    user.resetOtp = null;
+    user.resetOtpExpires = null;
     await user.save();
 
-    // حذف OTP بعد الاستخدام
-    otpStore.delete(email);
+    res.json({ error: false, message: "Password reset successful" });
 
-    res.json({
-      error: false,
-      message: "Password reset successful"
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      error: true,
-      message: "Server error"
-    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: true, message: "Server error" });
   }
 });
 
 
-
 // Start the server
 app.listen(_PORT, () => {
-    console.log(`Server is running on http://localhost:${_PORT}`);
+  console.log(`Server is running on http://localhost:${_PORT}`);
 });

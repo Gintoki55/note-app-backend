@@ -1,4 +1,4 @@
-const {Schema, model} = require('mongoose');
+const { Schema, model } = require('mongoose');
 
 const usersSchema = new Schema({
     username: {
@@ -16,8 +16,14 @@ const usersSchema = new Schema({
     },
     img: {
         type: String,
+    },
+    resetOtp: {           // 🔹 يخزن OTP مؤقت
+        type: String,
+    },
+    resetOtpExpires: {    // 🔹 وقت انتهاء صلاحية OTP
+        type: Date,
     }
-})
+});
 
 const UsersModel = model('users', usersSchema);
 
